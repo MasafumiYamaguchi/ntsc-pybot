@@ -588,7 +588,9 @@ class Ntsc:
     def vhs_edge_wave(self, yiq: numpy.ndarray, field: int):
         _, height, width = yiq.shape
         fY, fI, fQ = yiq
-        rnds = self.random.nextIntArray(height // 2, 0, self._vhs_edge_wave)
+        # Use field row count to avoid off-by-one on odd-height frames.
+        field_rows = fY[field::2].shape[0]
+        rnds = self.random.nextIntArray(field_rows, 0, self._vhs_edge_wave)
         lp = LowpassFilter(Ntsc.NTSC_RATE, self._output_vhs_tape_speed.luma_cut,
                            0)  # no real purpose to initialize it with ntsc values
         rnds = lp.lowpass_array(rnds).astype(numpy.int32)
