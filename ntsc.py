@@ -105,7 +105,7 @@ class XorWowRandom:
         self.addend: int = numpy.uint32((numpy.int32(seed1) << 10) ^ (numpy.uint32(seed2) >> 4))
         [self._nextInt() for _ in range(0, 64)]
 
-    def _nextInt(self) -> int:
+    def _nextInt(self) -> numpy.uint32:
         t = self.x
         t = numpy.int32(t ^ (numpy.uint32(t) >> 2))
         self.x = numpy.int32(self.y)
@@ -115,9 +115,9 @@ class XorWowRandom:
         self.w = numpy.int32(v0)
         t = (t ^ (t << 1)) ^ v0 ^ (v0 << 4)
         self.v = numpy.int32(t)
-        # Use uint32 to avoid overflow
+        # Use uint32 to avoid overflow, return uint32
         self.addend = numpy.uint32(self.addend + numpy.uint32(362437))
-        return int(numpy.int32(t) + numpy.int32(numpy.uint32(t) + self.addend))
+        return numpy.uint32(numpy.uint32(t) + self.addend)
 
     def nextInt(self, _from: int = Int_MIN_VALUE, until: int = Int_MAX_VALUE) -> numpy.int32:
         n = until - _from
@@ -127,8 +127,7 @@ class XorWowRandom:
             else:
                 v: int = 0
                 while True:
-                    bits_raw = self._nextInt()
-                    bits = numpy.uint32(bits_raw) >> 1
+                    bits = self._nextInt() >> 1  # Already uint32, safe to shift
                     v = int(bits) % n
                     if int(bits) - v + (n - 1) >= 0:
                         break
@@ -137,7 +136,7 @@ class XorWowRandom:
             r = range(_from, until)
             while True:
                 rnd = self._nextInt()
-                if rnd in r:
+                if int(rnd) in r:
                     return numpy.int32(rnd)
 
     def nextIntArray(self, size: int, _from: int = Int_MIN_VALUE, until: int = Int_MAX_VALUE) -> numpy.ndarray:
@@ -405,7 +404,11 @@ class Ntsc:
         noise = 0.0
         if self._vhs_head_switching_phase_noise != 0.0:
             # Safe uint64 calculation to prevent int32 overflow
-            x = int(numpy.uint64(self.rand()) * numpy.uint64(self.rand()) * numpy.uint64(self.rand()) * numpy.uint64(self.rand()))
+            r1 = int(numpy.uint32(self.rand()))
+            r2 = int(numpy.uint32(self.rand()))
+            r3 = int(numpy.uint32(self.rand()))
+            r4 = int(numpy.uint32(self.rand()))
+            x = int(numpy.uint64(r1) * numpy.uint64(r2) * numpy.uint64(r3) * numpy.uint64(r4))
             x %= 2000000000
             noise = x / 1000000000.0 - 1.0
             noise *= self._vhs_head_switching_phase_noise
