@@ -397,7 +397,8 @@ class Ntsc:
     def vhs_head_switching(self, yiq: numpy.ndarray, field: int = 0):
         _, height, width = yiq.shape
         fY, fI, fQ = yiq
-        twidth = width + width // 10
+        # オーバーフロー対策：twidth の値を制限
+        twidth = min(int(width + width // 10), 4096)
         shy = 0
         noise = 0.0
         if self._vhs_head_switching_phase_noise != 0.0:
@@ -406,7 +407,7 @@ class Ntsc:
             noise = x / 1000000000.0 - 1.0
             noise *= self._vhs_head_switching_phase_noise
 
-        t = twidth * (262.5 if self._output_ntsc else 312.5)
+        t = int(twidth * (262.5 if self._output_ntsc else 312.5))
         p = int(fmod(self._vhs_head_switching_point + noise, 1.0) * t)
         y = int(p // twidth * 2) + field
         p = int(fmod(self._vhs_head_switching_phase + noise, 1.0) * t)
