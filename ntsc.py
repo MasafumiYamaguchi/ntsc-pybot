@@ -115,9 +115,9 @@ class XorWowRandom:
         self.w = numpy.int32(v0)
         t = (t ^ (t << 1)) ^ v0 ^ (v0 << 4)
         self.v = numpy.int32(t)
-        # Use uint32 to avoid overflow, return uint32
-        self.addend = numpy.uint32(self.addend + numpy.uint32(362437))
-        return numpy.uint32(numpy.uint32(t) + self.addend)
+        # Use uint64 for intermediate calculation to avoid overflow warnings
+        self.addend = numpy.uint32(numpy.uint64(self.addend) + numpy.uint64(362437))
+        return numpy.uint32(numpy.uint64(numpy.uint32(t)) + numpy.uint64(self.addend))
 
     def nextInt(self, _from: int = Int_MIN_VALUE, until: int = Int_MAX_VALUE) -> numpy.int32:
         n = until - _from
@@ -408,7 +408,10 @@ class Ntsc:
             r2 = int(numpy.uint32(self.rand()))
             r3 = int(numpy.uint32(self.rand()))
             r4 = int(numpy.uint32(self.rand()))
-            x = int(numpy.uint64(r1) * numpy.uint64(r2) * numpy.uint64(r3) * numpy.uint64(r4))
+            # Perform stepwise multiplication with intermediate modulo to avoid uint64 overflow
+            x = int(numpy.uint64(r1) * numpy.uint64(r2))
+            x = (x % 2147483647) * int(numpy.uint64(r3))
+            x = (x % 2147483647) * int(numpy.uint64(r4))
             x %= 2000000000
             noise = x / 1000000000.0 - 1.0
             noise *= self._vhs_head_switching_phase_noise
