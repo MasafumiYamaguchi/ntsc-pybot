@@ -7,6 +7,8 @@ import numpy as np
 import cv2
 from dotenv import load_dotenv
 import time
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
 load_dotenv()
 TOKEN = os.getenv("BOT_TOKEN")
@@ -14,6 +16,9 @@ TOKEN = os.getenv("BOT_TOKEN")
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
+
+# Thread pool for image processing
+executor = ThreadPoolExecutor(max_workers=2)
 
 def decode_image(image_buffer):
     image_array = np.frombuffer(image_buffer.getvalue(), dtype=np.uint8)
@@ -122,7 +127,14 @@ async def capture(ctx: commands.Context):
     image_buffer.name = attachment.filename
 
     await ctx.send("Processing image...")
-    image_buffer = process_image(image_buffer)
-    await ctx.send(file=discord.File(image_buffer, filename="processed_image.jpg"))
+    
+    # Run image processing in thread pool to prevent blocking Discord heartbeat
+    loop = asyncio.get_event_loop()
+    try:
+        image_buffer = await loop.run_in_executor(executor, process_image, image_buffer)
+        await ctx.send(file=discord.File(image_buffer, filename="processed_image.png"))
+    except Exception as e:
+        print(f"[Error] Processing failed: {e}")
+        await ctx.send(f"Error processing image: {str(e)}")
 
 bot.run(TOKEN)

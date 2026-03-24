@@ -102,7 +102,7 @@ class XorWowRandom:
         self.z: int = numpy.int32(0)
         self.w: int = numpy.int32(0)
         self.v: int = -numpy.int32(seed1) - 1
-        self.addend: int = numpy.int32((numpy.int32(seed1) << 10) ^ (numpy.uint32(seed2) >> 4))
+        self.addend: int = numpy.uint32((numpy.int32(seed1) << 10) ^ (numpy.uint32(seed2) >> 4))
         [self._nextInt() for _ in range(0, 64)]
 
     def _nextInt(self) -> int:
@@ -115,8 +115,9 @@ class XorWowRandom:
         self.w = numpy.int32(v0)
         t = (t ^ (t << 1)) ^ v0 ^ (v0 << 4)
         self.v = numpy.int32(t)
-        self.addend += 362437
-        return t + numpy.int32(self.addend)
+        # Use uint32 to avoid overflow
+        self.addend = numpy.uint32(self.addend + numpy.uint32(362437))
+        return int(numpy.int32(t) + numpy.int32(numpy.uint32(t) + self.addend))
 
     def nextInt(self, _from: int = Int_MIN_VALUE, until: int = Int_MAX_VALUE) -> numpy.int32:
         n = until - _from
@@ -126,9 +127,10 @@ class XorWowRandom:
             else:
                 v: int = 0
                 while True:
-                    bits = numpy.uint32(self._nextInt()) >> 1
-                    v = bits % n
-                    if bits - v + (n - 1) >= 0:
+                    bits_raw = self._nextInt()
+                    bits = numpy.uint32(bits_raw) >> 1
+                    v = int(bits) % n
+                    if int(bits) - v + (n - 1) >= 0:
                         break
                 return numpy.int32(_from + v)
         else:
@@ -402,7 +404,8 @@ class Ntsc:
         shy = 0
         noise = 0.0
         if self._vhs_head_switching_phase_noise != 0.0:
-            x = numpy.int32(self.rand() * self.rand() * self.rand() * self.rand())
+            # Safe uint64 calculation to prevent int32 overflow
+            x = int(numpy.uint64(self.rand()) * numpy.uint64(self.rand()) * numpy.uint64(self.rand()) * numpy.uint64(self.rand()))
             x %= 2000000000
             noise = x / 1000000000.0 - 1.0
             noise *= self._vhs_head_switching_phase_noise
